@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>טופס שאלון דוח ייצור - מחולל דוחות</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+    <!-- Top Navigation -->
+    <nav class="top-nav">
+        <div class="nav-brand">
+            <span class="nav-icon">📋</span>
+            <span>מחולל דוחות ייצור</span>
+        </div>
+        <div class="nav-actions">
+            <button class="nav-btn active" onclick="showTab('report')" id="tab-report">
+                <span>📚</span> דוחות
+            </button>
+            <button class="nav-btn" onclick="showTab('admin')" id="tab-admin">
+                <span>⚙️</span> ניהול נתונים
+            </button>
+            <div class="theme-toggle" onclick="toggleTheme()" title="מצב בהיר / כהה">
+                <span class="theme-toggle-label" id="themeIcon">🌙</span>
+                <div class="theme-toggle-track"></div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- REPORT TAB -->
+    <div id="view-report" class="view active">
+        <div class="container">
+
+            <!-- ===== REPORT LIST (default view) ===== -->
+            <div id="historyPanel">
+                <h2 class="admin-title">📚 דוחות ייצור</h2>
+                <div style="text-align:center;margin-bottom:20px;">
+                    <button class="btn-primary" onclick="newReport()"
+                        style="background:var(--gold);border-color:var(--gold);font-size:1.1rem;padding:14px 36px;">
+                        📝 דוח חדש
+                    </button>
+                </div>
+                <p style="text-align:center;color:var(--text2);margin-bottom:20px;">דוחות שנשמרו מוצגים כאן. לחץ כדי
+                    לערוך.</p>
+                <div id="historyList" class="admin-list"></div>
+            </div>
+
+            <!-- ===== REPORT FORM (shown on new/edit) ===== -->
+            <div id="formPanel" style="display:none;">
+
+                <!-- Back to list button -->
+                <div style="margin-bottom:16px;">
+                    <button class="btn-secondary" onclick="showReportList()" style="padding:8px 20px;">
+                        ← חזור לרשימת דוחות
+                    </button>
+                </div>
+
+                <div id="currentReportBadge" class="current-report-badge" style="display:none;">
+                    <span id="currentReportName"></span>
+                </div>
+
+                <header class="report-header">
+                    <div class="header-decoration"></div>
+                    <h1>בס"ד</h1>
+                    <h2>טופס שאלון דוח ייצור</h2>
+                    <p class="subtitle">(ימולא ע"י גוף הכשרות/ המשגיח ובחתימתו)</p>
+                </header>
+
+                <!-- Date -->
+                <section class="form-section">
+                    <div class="section-header"><span class="section-icon">📅</span> תאריך</div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>תאריך:</label>
+                            <input type="date" id="reportDate">
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Importer / Kosher Body -->
+                <section class="form-section">
+                    <div class="section-header"><span class="section-icon">🏢</span> מגיש הבקשה: היבואן / גוף הכשרות
+                    </div>
+                    <div class="section-subtitle">יבוא המוצר לישראל</div>
+                    <div class="form-row">
+                        <div class="form-group full">
+                            <label>שם היבואן שעבורו נעשה הייצור והובא למטרת שיווקו בארץ:</label>
+                            <select id="selImporter" onchange="onImporterChange()">
+                                <option value="">-- בחר יבואן --</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row three-col">
+                        <div class="form-group">
+                            <label>טלפון/נייד:</label>
+                            <input type="text" id="importerPhone" class="auto-filled">
+                        </div>
+                        <div class="form-group">
+                            <label>פקס:</label>
+                            <input type="text" id="importerFax">
+                        </div>
+                        <div class="form-group">
+                            <label>דוא"ל:</label>
+                            <input type="text" id="importerEmail" class="auto-filled">
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Certifier -->
+                <section class="form-section">
+                    <div class="section-header"><span class="section-icon">✡️</span> גוף הכשרות</div>
+                    <div class="form-row">
+                        <div class="form-group full">
+                            <label>שם גוף הכשרות/ רב נותן הכשרות בחו"ל:</label>
+                            <select id="selCertifier" onchange="onCertifierChange()">
+                                <option value="">-- בחר גוף כשרות --</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row three-col">
+                        <div class="form-group">
+                            <label>טלפון/נייד:</label>
+                            <input type="text" id="certifierPhone" class="auto-filled">
+                        </div>
+                        <div class="form-group">
+                            <label>פקס:</label>
+                            <input type="text" id="certifierFax" class="auto-filled">
+                        </div>
+                        <div class="form-group">
+                            <label>דוא"ל:</label>
+                            <input type="text" id="certifierEmail" class="auto-filled">
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Factory -->
+                <section class="form-section">
+                    <div class="section-header"><span class="section-icon">🏭</span> פרטי המפעל</div>
+                    <div class="form-row">
+                        <div class="form-group full">
+                            <label>שם המפעל:</label>
+                            <select id="selFactory" onchange="onFactoryChange()">
+                                <option value="">-- בחר מפעל --</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row two-col">
+                        <div class="form-group">
+                            <label>1. איש קשר במפעל:</label>
+                            <input type="text" id="factoryContact" class="auto-filled">
+                        </div>
+                        <div class="form-group">
+                            <label>2. טלפון/נייד של איש הקשר:</label>
+                            <input type="text" id="factoryPhone" class="auto-filled">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group full">
+                            <label>3. אתר הבית באינטרנט:</label>
+                            <input type="text" id="factoryWebsite">
+                        </div>
+                    </div>
+                    <div class="form-row two-col">
+                        <div class="form-group">
+                            <label>4. שם המדינה בה קיים המפעל:</label>
+                            <input type="text" id="factoryCountry" class="auto-filled">
+                        </div>
+                        <div class="form-group">
+                            <label>עיר:</label>
+                            <input type="text" id="factoryCity" class="auto-filled">
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Products -->
+                <section class="form-section">
+                    <div class="section-header"><span class="section-icon">📦</span> המוצר/ים המוגמר שעליו ניתן הכשרות
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group full">
+                            <textarea id="products" rows="3" placeholder="רשום את המוצרים כאן..."></textarea>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Production Method -->
+                <section class="form-section">
+                    <div class="section-header"><span class="section-icon">⚙️</span> אופן הייצור</div>
+                    <div class="form-row">
+                        <div class="form-group full">
+                            <label>האם במפעל מיוצרים גם מוצרים לא כשרים:</label>
+                            <div class="radio-group">
+                                <label class="radio-label"><input type="radio" name="nonKosher" value="כן"> כן</label>
+                                <label class="radio-label"><input type="radio" name="nonKosher" value="לא"> לא</label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group full">
+                            <label>1.א. במידה וכן, האם בוצע ניקון/הכשרה על פי הנהלים:</label>
+                            <input type="text" id="cleaningDone">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group full">
+                            <label>הייצור הנוכחי כשר לכל ימות השנה כולל פסח/ייצור מיוחד לפסח:</label>
+                            <input type="text" id="pesachStatus">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group full">
+                            <label>3. כמות ושמות המוצרים שנעשו בהשגחה צמודה:</label>
+                            <textarea id="supervisedProducts" rows="2"></textarea>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>4. בישול ישראל:</label>
+                            <div class="radio-group">
+                                <label class="radio-label"><input type="radio" name="bishulIsrael" value="כן">
+                                    כן</label>
+                                <label class="radio-label"><input type="radio" name="bishulIsrael" value="לא">
+                                    לא</label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group full">
+                            <label>4.א. במידה ונעשה בישול ישראל, ע"י מי?</label>
+                            <input type="text" id="bishulBy">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group full">
+                            <label>4.ב. במידה ואין צורך בבישול ישראל, יש לציין מדוע:</label>
+                            <input type="text" id="bishulWhy">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>5. אפיית ישראל:</label>
+                            <div class="radio-group">
+                                <label class="radio-label"><input type="radio" name="afiyatIsrael" value="כן">
+                                    כן</label>
+                                <label class="radio-label"><input type="radio" name="afiyatIsrael" value="לא">
+                                    לא</label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group full">
+                            <label>5.א. כמה ימים ערך הייצור?</label>
+                            <input type="text" id="productionDays">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group full">
+                            <label>5.ב. האם משגיח נמצא בהדלקה הראשונית או בכל ימי היצור?</label>
+                            <input type="text" id="supervisorPresence">
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Close Supervision -->
+                <section class="form-section">
+                    <div class="section-header"><span class="section-icon">👁️</span> השגחה צמודה</div>
+                    <div class="form-row">
+                        <div class="form-group full">
+                            <label>1. שם המשגיח שנכח בשעת הייצור:</label>
+                            <input type="text" id="supervisorName">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group full">
+                            <label>1.א. (במקרה של מספר משגיחים):</label>
+                            <textarea id="additionalSupervisors" rows="2"
+                                placeholder="שמות ומספרי טלפון של כל המשגיחים..."></textarea>
+                        </div>
+                    </div>
+                    <div class="form-row two-col">
+                        <div class="form-group">
+                            <label>2. טלפון/נייד:</label>
+                            <input type="text" id="supervisorPhone">
+                        </div>
+                        <div class="form-group">
+                            <label>3. דוא"ל:</label>
+                            <input type="text" id="supervisorEmail">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group full">
+                            <label>4. תאריכי ההשגחה/ייצור:</label>
+                            <div class="date-range">
+                                <input type="date" id="supervisionDateFrom"> <span>עד</span> <input type="date"
+                                    id="supervisionDateTo">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-row two-col">
+                        <div class="form-group">
+                            <label>5. שעת התחלת ייצור:</label>
+                            <input type="time" id="productionStart">
+                        </div>
+                        <div class="form-group">
+                            <label>6. שעת הסיום ייצור:</label>
+                            <input type="time" id="productionEnd">
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Packaging -->
+                <section class="form-section">
+                    <div class="section-header"><span class="section-icon">📦</span> אריזה, קודי הייצור והולוגרמות</div>
+                    <div class="form-row">
+                        <div class="form-group full">
+                            <label>ציין את נוסח הכשרות המלא המצויין ע"ג האריזה:</label>
+                            <textarea id="kosherText" rows="2"></textarea>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group full">
+                            <label>ציין את קוד הייצור המופיע ע"ג המוצר:</label>
+                            <input type="text" id="productionCode">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>פג תוקף הייצור בתאריך:</label>
+                            <input type="date" id="expiryDate">
+                        </div>
+                    </div>
+                    <div class="form-row two-col">
+                        <div class="form-group">
+                            <label>האם הודבקו הולוגרמות על האריזות:</label>
+                            <div class="radio-group">
+                                <label class="radio-label"><input type="radio" name="holograms" value="כן"> כן</label>
+                                <label class="radio-label"><input type="radio" name="holograms" value="לא"> לא</label>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>לחילופין, האם האריזות הוחתמו בחותמות:</label>
+                            <div class="radio-group">
+                                <label class="radio-label"><input type="radio" name="stamps" value="כן"> כן</label>
+                                <label class="radio-label"><input type="radio" name="stamps" value="לא"> לא</label>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Regular Supervision -->
+                <section class="form-section">
+                    <div class="section-header"><span class="section-icon">🔍</span> השגחה בכשרות רגילה (שלא בהשגחה
+                        צמודה)
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group full">
+                            <label>שם המשגיח או הרב שערך את הביקור במפעל:</label>
+                            <input type="text" id="regularSupervisorName">
+                        </div>
+                    </div>
+                    <div class="form-row two-col">
+                        <div class="form-group">
+                            <label>תאריך הביקור במפעל:</label>
+                            <input type="date" id="visitDate">
+                        </div>
+                        <div class="form-group">
+                            <label>מה תדירות הביקורים בשנה:</label>
+                            <input type="text" id="visitFrequency">
+                        </div>
+                    </div>
+                    <div class="form-row two-col">
+                        <div class="form-group">
+                            <label>טלפון/נייד:</label>
+                            <input type="text" id="regularSupervisorPhone">
+                        </div>
+                        <div class="form-group">
+                            <label>דוא"ל:</label>
+                            <input type="text" id="regularSupervisorEmail">
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Raw Materials (Question 10) -->
+                <section class="form-section">
+                    <div class="section-header"><span class="section-icon">🧪</span> 10. חומרי גלם</div>
+                    <div class="section-subtitle">חומרי הגלם הינם בכשרות של רבנות מוכרת ומוסמכת ע"י הרה"ר</div>
+                    <div class="raw-materials-checklist" id="rawMaterialsChecklist">
+                        <!-- Checkboxes will be rendered by JS -->
+                    </div>
+                    <div class="form-row" style="margin-top:12px;">
+                        <div class="form-group" style="flex:1;">
+                            <label>חומר גלם נוסף (חד פעמי):</label>
+                            <input type="text" id="customRawMaterial" placeholder="הזן חומר גלם שאינו ברשימה...">
+                        </div>
+                        <div class="form-group" style="flex:0;align-self:flex-end;">
+                            <button class="btn-small" onclick="addCustomRawMaterial()">➕</button>
+                        </div>
+                    </div>
+                    <!-- Hidden field that gathers the final text -->
+                    <input type="hidden" id="rawMaterials">
+                </section>
+
+                <!-- Signatures -->
+                <section class="form-section">
+                    <div class="section-header"><span class="section-icon">✍️</span> חתימות</div>
+                    <div class="signatures-grid">
+                        <div class="signature-box">
+                            <h4>חתימת המשגיח</h4>
+                            <p class="sig-desc">חתימת המשגיח תעשה אישית ע"י המשגיח שהיה נוכח בשעת הייצור</p>
+                            <div class="signature-preview" id="sigSupervisor">
+                                <span class="sig-placeholder">לחץ לבחור חתימה</span>
+                            </div>
+                            <select id="selSigSupervisor" onchange="onSignatureSelect('supervisor')">
+                                <option value="">-- בחר חתימה --</option>
+                            </select>
+                        </div>
+                        <div class="signature-box">
+                            <h4>חותמת גוף הכשרות</h4>
+                            <p class="sig-desc">חותמת גוף הכשרות וחתימתו של רב פוסק מטעמם</p>
+                            <div class="signature-preview" id="sigCertifier">
+                                <span class="sig-placeholder">לחץ לבחור חתימה</span>
+                            </div>
+                            <select id="selSigCertifier" onchange="onSignatureSelect('certifier')">
+                                <option value="">-- בחר חתימה --</option>
+                            </select>
+                        </div>
+                    </div>
+                    <p class="sig-disclaimer">(זו חתימתי והנתונים שמסרתי הינם נכונים ומדויקים.)</p>
+                </section>
+
+                <!-- Production Process -->
+                <section class="form-section">
+                    <div class="section-header"><span class="section-icon">📝</span> פירוט תהליך הייצור</div>
+                    <div class="form-row">
+                        <div class="form-group full">
+                            <textarea id="productionProcess" rows="8"
+                                placeholder="פרט את תהליך הייצור המלא..."></textarea>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Final Signature -->
+                <section class="form-section">
+                    <div class="section-header"><span class="section-icon">✍️</span> חתימה סופית</div>
+                    <div class="form-row two-col">
+                        <div class="form-group">
+                            <label>חתימת המשגיח:</label>
+                            <div class="signature-preview small" id="sigFinal">
+                                <span class="sig-placeholder">חתימה סופית</span>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>תאריך:</label>
+                            <input type="date" id="finalDate">
+                        </div>
+                    </div>
+                </section>
+
+                <div class="form-actions">
+                    <button class="btn-primary" onclick="saveReport()">💾 שמור דוח</button>
+                    <button class="btn-primary accent" onclick="exportToWord()">📄 ייצוא ל-Word</button>
+                    <button class="btn-secondary" onclick="showReportList()" style="margin-right:auto;">← חזור
+                        לרשימה</button>
+                </div>
+
+            </div><!-- /formPanel -->
+
+        </div>
+    </div>
+
+
+    <!-- ADMIN TAB -->
+    <div id="view-admin" class="view">
+        <div class="container">
+            <h2 class="admin-title">⚙️ ניהול נתונים</h2>
+            <div class="admin-tabs">
+                <button class="admin-tab active" onclick="showAdminSection('importers')">🏢 יבואנים</button>
+                <button class="admin-tab" onclick="showAdminSection('certifiers')">✡️ גופי כשרות</button>
+                <button class="admin-tab" onclick="showAdminSection('factories')">🏭 מפעלים</button>
+                <button class="admin-tab" onclick="showAdminSection('rawMaterials')">🧪 חומרי גלם</button>
+                <button class="admin-tab" onclick="showAdminSection('signatures')">✍️ חתימות</button>
+            </div>
+
+            <!-- Importers Admin -->
+            <div id="admin-importers" class="admin-section active">
+                <div class="admin-form" id="form-importers">
+                    <h3 id="formTitle-importers">הוסף יבואן חדש</h3>
+                    <input type="hidden" id="editId-importers" value="">
+                    <div class="form-row three-col">
+                        <div class="form-group"><label>שם (עברית):</label><input type="text" id="newImpName"></div>
+                        <div class="form-group"><label>טלפון:</label><input type="text" id="newImpPhone"></div>
+                        <div class="form-group"><label>דוא"ל:</label><input type="text" id="newImpEmail"></div>
+                    </div>
+                    <div class="admin-form-actions">
+                        <button class="btn-primary" id="formBtn-importers" onclick="addImporter()">➕ הוסף</button>
+                        <button class="btn-secondary" id="formCancel-importers" onclick="cancelEdit('importers')"
+                            style="display:none">❌ ביטול</button>
+                    </div>
+                </div>
+                <div class="admin-list" id="list-importers"></div>
+            </div>
+
+            <!-- Certifiers Admin -->
+            <div id="admin-certifiers" class="admin-section">
+                <div class="admin-form" id="form-certifiers">
+                    <h3 id="formTitle-certifiers">הוסף גוף כשרות חדש</h3>
+                    <input type="hidden" id="editId-certifiers" value="">
+                    <div class="form-row two-col">
+                        <div class="form-group"><label>שם:</label><input type="text" id="newCertName"></div>
+                        <div class="form-group"><label>דוא"ל:</label><input type="text" id="newCertEmail"></div>
+                    </div>
+                    <div class="form-row two-col">
+                        <div class="form-group"><label>פקס:</label><input type="text" id="newCertFax"></div>
+                        <div class="form-group"><label>טלפון:</label><input type="text" id="newCertPhone"></div>
+                    </div>
+                    <div class="admin-form-actions">
+                        <button class="btn-primary" id="formBtn-certifiers" onclick="addCertifier()">➕ הוסף</button>
+                        <button class="btn-secondary" id="formCancel-certifiers" onclick="cancelEdit('certifiers')"
+                            style="display:none">❌ ביטול</button>
+                    </div>
+                </div>
+                <div class="admin-list" id="list-certifiers"></div>
+            </div>
+
+            <!-- Factories Admin -->
+            <div id="admin-factories" class="admin-section">
+                <div class="admin-form" id="form-factories">
+                    <h3 id="formTitle-factories">הוסף מפעל חדש</h3>
+                    <input type="hidden" id="editId-factories" value="">
+                    <div class="form-row three-col">
+                        <div class="form-group"><label>שם (עברית):</label><input type="text" id="newFactName"></div>
+                        <div class="form-group"><label>עיר:</label><input type="text" id="newFactCity"></div>
+                        <div class="form-group"><label>מדינה:</label><input type="text" id="newFactCountry"></div>
+                    </div>
+                    <div class="form-row three-col">
+                        <div class="form-group"><label>איש קשר:</label><input type="text" id="newFactContact"></div>
+                        <div class="form-group"><label>טלפון:</label><input type="text" id="newFactPhone"></div>
+                        <div class="form-group"><label>דוא"ל:</label><input type="text" id="newFactEmail"></div>
+                    </div>
+                    <div class="admin-form-actions">
+                        <button class="btn-primary" id="formBtn-factories" onclick="addFactory()">➕ הוסף</button>
+                        <button class="btn-secondary" id="formCancel-factories" onclick="cancelEdit('factories')"
+                            style="display:none">❌ ביטול</button>
+                    </div>
+                </div>
+                <div class="admin-list" id="list-factories"></div>
+            </div>
+
+            <!-- Raw Materials Admin -->
+            <div id="admin-rawMaterials" class="admin-section">
+                <div class="admin-form" id="form-rawMaterials">
+                    <h3 id="formTitle-rawMaterials">הוסף חומר גלם / מרכיב חדש</h3>
+                    <input type="hidden" id="editId-rawMaterials" value="">
+                    <div class="form-row two-col">
+                        <div class="form-group"><label>שם בעברית:</label><input type="text" id="newRawMatName"
+                                placeholder="לדוגמה: סוכר"></div>
+                        <div class="form-group"><label>קטגוריה (אופציונלי):</label><input type="text"
+                                id="newRawMatCategory" placeholder="לדוגמה: ממתיקים"></div>
+                    </div>
+                    <div class="admin-form-actions">
+                        <button class="btn-primary" id="formBtn-rawMaterials" onclick="addRawMaterial()">➕ הוסף חומר
+                            גלם</button>
+                        <button class="btn-secondary" id="formCancel-rawMaterials" onclick="cancelEdit('rawMaterials')"
+                            style="display:none">❌ ביטול</button>
+                    </div>
+                </div>
+                <div class="admin-list" id="list-rawMaterials"></div>
+            </div>
+
+            <!-- Signatures Admin -->
+            <div id="admin-signatures" class="admin-section">
+                <div class="admin-form" id="form-signatures">
+                    <h3 id="formTitle-signatures">הוסף חתימה חדשה</h3>
+                    <input type="hidden" id="editId-signatures" value="">
+                    <div class="form-row two-col">
+                        <div class="form-group"><label>שם בעל החתימה:</label><input type="text" id="newSigName">
+                        </div>
+                        <div class="form-group">
+                            <label>תמונת חתימה (PNG):</label>
+                            <input type="file" id="newSigFile" accept="image/png,image/jpeg"
+                                onchange="previewSignature(event)">
+                        </div>
+                    </div>
+                    <div class="sig-upload-preview" id="sigUploadPreview"></div>
+                    <div class="admin-form-actions">
+                        <button class="btn-primary" id="formBtn-signatures" onclick="addSignature()">➕ הוסף
+                            חתימה</button>
+                        <button class="btn-secondary" id="formCancel-signatures" onclick="cancelEdit('signatures')"
+                            style="display:none">❌ ביטול</button>
+                    </div>
+                </div>
+                <div class="admin-list signatures-list" id="list-signatures"></div>
+            </div>
+        </div>
+    </div>
+
+
+    <script src="app.js"></script>
+</body>
+
+</html>

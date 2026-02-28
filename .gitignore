@@ -1,0 +1,17 @@
+node_modules/
+output/
+dist/
+extracted/
+*.docx
+!template.docx
+*.docm
+*.xlsx
+data.json
+.env
+package-lock.json
+clean_underscores.js
+fix_template.js
+extract_headers.js
+convert_images.js
+generate_report.js
+create_template.js
