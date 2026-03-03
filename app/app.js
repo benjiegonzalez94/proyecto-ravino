@@ -83,6 +83,7 @@ function getDefaultData() {
 let store = loadStore() || getDefaultData();
 if (!store.signatures) store.signatures = [];
 if (!store.rawMaterials) store.rawMaterials = [];
+if (!store.products) store.products = [];
 if (!store.nextId) store.nextId = 100;
 
 function genId() { return store.nextId++; }
@@ -123,6 +124,115 @@ function showAdminSection(section) {
 }
 
 // ============================================================
+// EXPORT / IMPORT MASTER DATA
+// ============================================================
+function exportMasterData() {
+    const exportData = {
+        _exportedAt: new Date().toISOString(),
+        _version: '1.0',
+        importers: store.importers || [],
+        certifiers: store.certifiers || [],
+        factories: store.factories || [],
+        rawMaterials: store.rawMaterials || [],
+        products: store.products || [],
+        signatures: store.signatures || [],
+    };
+
+    const json = JSON.stringify(exportData, null, 2);
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const date = new Date().toISOString().split('T')[0];
+    a.href = url;
+    a.download = `ravino_datos_maestros_${date}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast('נתונים יוצאו בהצלחה ✓');
+}
+
+async function importMasterData(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    try {
+        const text = await file.text();
+        const data = JSON.parse(text);
+
+        // Validate structure
+        const types = ['importers', 'certifiers', 'factories', 'rawMaterials', 'products', 'signatures'];
+        const hasData = types.some(t => Array.isArray(data[t]) && data[t].length > 0);
+        if (!hasData) {
+            toast('הקובץ אינו מכיל נתונים תקפים');
+            event.target.value = '';
+            return;
+        }
+
+        // Ask user: merge or replace
+        const mode = confirm(
+            'כיצד לייבא את הנתונים?\n\n' +
+            'אישור = מיזוג (הוספה לנתונים הקיימים)\n' +
+            'ביטול = החלפה (מחיקת הנתונים הקיימים)'
+        ) ? 'merge' : 'replace';
+
+        let counts = { added: 0, updated: 0 };
+
+        for (const type of types) {
+            if (!Array.isArray(data[type])) continue;
+
+            if (mode === 'replace') {
+                store[type] = data[type];
+                counts.added += data[type].length;
+            } else {
+                // Merge: add new items, update existing by ID
+                for (const item of data[type]) {
+                    const existingIdx = store[type].findIndex(e => e.id === item.id);
+                    if (existingIdx >= 0) {
+                        store[type][existingIdx] = item;
+                        counts.updated++;
+                    } else {
+                        store[type].push(item);
+                        counts.added++;
+                    }
+                }
+            }
+        }
+
+        // Save locally
+        saveStore();
+
+        // Sync to server if available
+        if (serverMode) {
+            try {
+                await fetch('/api/data', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(store)
+                });
+            } catch (e) { console.warn('Server sync failed:', e); }
+        }
+
+        // Refresh UI
+        renderAllAdminLists();
+        populateSelects();
+        renderRawMaterialsChecklist();
+        renderProductsChecklist();
+        renderSupervisorsChecklist();
+        fillSignatureSelects();
+
+        const msg = mode === 'replace'
+            ? `הנתונים הוחלפו בהצלחה (${counts.added} פריטים) ✓`
+            : `מיזוג הושלם: ${counts.added} חדשים, ${counts.updated} עודכנו ✓`;
+        toast(msg);
+
+    } catch (e) {
+        console.error('Import error:', e);
+        toast('שגיאה בייבוא: קובץ לא תקין');
+    }
+
+    event.target.value = ''; // Reset file input
+}
+
+// ============================================================
 // POPULATE SELECTS
 // ============================================================
 function populateSelects() {
@@ -148,8 +258,9 @@ function fillSelect(selectId, items, labelField) {
 }
 
 function fillSignatureSelects() {
-    ['selSigSupervisor', 'selSigCertifier'].forEach(selId => {
+    ['selSigSupervisor'].forEach(selId => {
         const sel = document.getElementById(selId);
+        if (!sel) return;
         const currentVal = sel.value;
         const firstOpt = sel.options[0];
         sel.innerHTML = '';
@@ -192,18 +303,17 @@ function onFactoryChange() {
 }
 
 function onSignatureSelect(type) {
-    const selId = type === 'supervisor' ? 'selSigSupervisor' : 'selSigCertifier';
-    const previewId = type === 'supervisor' ? 'sigSupervisor' : 'sigCertifier';
-    const sel = document.getElementById(selId);
-    const preview = document.getElementById(previewId);
+    const sel = document.getElementById('selSigSupervisor');
+    const preview = document.getElementById('sigSupervisor');
     const sig = store.signatures.find(s => s.id == sel.value);
     if (sig && sig.imageData) {
         preview.innerHTML = `<img src="${sig.imageData}" alt="חתימה">`;
     } else {
         preview.innerHTML = '<span class="sig-placeholder">לחץ לבחור חתימה</span>';
     }
-    if (type === 'supervisor' && sig && sig.imageData) {
-        document.getElementById('sigFinal').innerHTML = `<img src="${sig.imageData}" alt="חתימה">`;
+    const sigFinal = document.getElementById('sigFinal');
+    if (sig && sig.imageData && sigFinal) {
+        sigFinal.innerHTML = `<img src="${sig.imageData}" alt="חתימה">`;
     }
 }
 
@@ -270,6 +380,7 @@ async function saveEditedItem(type, updated) {
     renderAdminList(type);
     populateSelects();
     if (type === 'rawMaterials') renderRawMaterialsChecklist();
+    if (type === 'products') renderProductsChecklist();
     toast('הפריט עודכן בהצלחה ✓');
     return true;
 }
@@ -376,6 +487,7 @@ async function addSignature() {
         if (await saveEditedItem('signatures', data)) {
             preview.innerHTML = ''; preview._imageData = null;
             fillSignatureSelects();
+            renderSupervisorsChecklist();
             return;
         }
     }
@@ -394,6 +506,7 @@ async function addSignature() {
     preview.innerHTML = ''; preview._imageData = null;
     renderAdminList('signatures');
     fillSignatureSelects();
+    renderSupervisorsChecklist();
     toast('חתימה נוספה בהצלחה ✓');
 }
 
@@ -410,6 +523,7 @@ async function deleteItem(type, id) {
     renderAdminList(type);
     populateSelects();
     if (type === 'rawMaterials') renderRawMaterialsChecklist();
+    if (type === 'products') renderProductsChecklist();
     toast('נמחק בהצלחה');
 }
 
@@ -418,7 +532,9 @@ async function addRawMaterial() {
     if (!name) { toast('נא להזין שם חומר גלם'); return; }
     const data = {
         name,
-        category: document.getElementById('newRawMatCategory').value.trim()
+        category: document.getElementById('newRawMatCategory').value.trim(),
+        manufacturer: document.getElementById('newRawMatManufacturer').value.trim(),
+        certification: document.getElementById('newRawMatCertification').value.trim()
     };
 
     if (await saveEditedItem('rawMaterials', data)) return;
@@ -481,7 +597,10 @@ function renderRawMaterialsChecklist() {
         html += `<div class="raw-mat-category-title">${cat}</div>`;
         html += `<div class="raw-mat-category-items">`;
         catItems.forEach(item => {
-            html += `<label class="raw-mat-item"><input type="checkbox" name="rawMat" value="${item.name}" onchange="updateRawMaterialsHidden()"> <span>${item.name}</span></label>`;
+            const details = [item.manufacturer, item.certification].filter(Boolean).join(' - ');
+            const fullLine = details ? `${item.name} - ${details}` : item.name;
+            const detailSpan = details ? `<span class="raw-mat-detail"> (${details})</span>` : '';
+            html += `<label class="raw-mat-item"><input type="checkbox" name="rawMat" value="${item.name}" data-fullline="${fullLine}" onchange="updateRawMaterialsHidden()"> <span>${item.name}${detailSpan}</span></label>`;
         });
         html += `</div></div>`;
     }
@@ -490,15 +609,148 @@ function renderRawMaterialsChecklist() {
 
 function updateRawMaterialsHidden() {
     const checked = Array.from(document.querySelectorAll('input[name="rawMat"]:checked'));
+    const lines = checked.map(cb => cb.dataset.fullline || cb.value);
+    document.getElementById('rawMaterials').value = lines.join('\n');
+}
+
+// ============================================================
+// PRODUCTS MASTER DATA & CHECKLIST
+// ============================================================
+async function addProduct() {
+    const name = document.getElementById('newProductName').value.trim();
+    if (!name) { toast('נא להזין שם מוצר'); return; }
+    const data = { name };
+
+    if (await saveEditedItem('products', data)) return;
+
+    const item = await serverAdd('products', data);
+    if (!item) return;
+
+    if (!store.products) store.products = [];
+    if (!serverMode) { data.id = genId(); store.products.push(data); }
+    else { store.products.push(item); }
+
+    saveStore(store);
+    cancelEdit('products');
+    renderAdminList('products');
+    renderProductsChecklist();
+    toast('מוצר נוסף בהצלחה ✓');
+}
+
+function renderProductsChecklist() {
+    const container = document.getElementById('productsChecklist');
+    if (!container) return;
+    const items = store.products || [];
+
+    if (items.length === 0) {
+        container.innerHTML = '<div style="text-align:center;color:var(--text2);padding:12px;">אין מוצרים מוגדרים. הוסף מוצרים בניהול נתונים.</div>';
+        return;
+    }
+
+    let html = '<div class="raw-mat-category-items">';
+    items.forEach(item => {
+        html += `<label class="raw-mat-item"><input type="checkbox" name="productItem" value="${item.name}" onchange="updateProductsHidden()"> <span>${item.name}</span></label>`;
+    });
+    html += '</div>';
+    container.innerHTML = html;
+}
+
+function updateProductsHidden() {
+    const checked = Array.from(document.querySelectorAll('input[name="productItem"]:checked'));
     const names = checked.map(cb => cb.value);
-    document.getElementById('rawMaterials').value = names.join(', ');
+    document.getElementById('products').value = names.join(', ');
+
+    // Auto-fill supervised products with selected product names
+    const supervisedEl = document.getElementById('supervisedProducts');
+    if (supervisedEl) {
+        const lines = names.map(n => `${n} — כמות: `);
+        supervisedEl.value = lines.join('\n');
+    }
+}
+
+// ============================================================
+// SUPERVISORS CHECKLIST
+// ============================================================
+let manualSupervisors = []; // manually added supervisors
+
+function renderSupervisorsChecklist() {
+    const container = document.getElementById('supervisorsChecklist');
+    if (!container) return;
+    const sigs = store.signatures || [];
+
+    let html = '';
+
+    // Signatures from master data
+    if (sigs.length > 0) {
+        html += '<div class="raw-mat-category-items">';
+        sigs.forEach(sig => {
+            html += `<label class="raw-mat-item"><input type="checkbox" name="supervisorItem" value="${sig.name}" onchange="updateSupervisorsHidden()"> <span>${sig.name}</span></label>`;
+        });
+        html += '</div>';
+    }
+
+    // Manually added supervisors
+    if (manualSupervisors.length > 0) {
+        html += '<div class="raw-mat-category" style="margin-top:8px;">';
+        html += '<div class="raw-mat-category-title">נוספו ידנית</div>';
+        html += '<div class="raw-mat-category-items">';
+        manualSupervisors.forEach((name, idx) => {
+            html += `<label class="raw-mat-item"><input type="checkbox" name="supervisorItem" value="${name}" checked onchange="updateSupervisorsHidden()"> <span>${name}</span> <button type="button" onclick="removeManualSupervisor(${idx})" style="background:none;border:none;color:var(--danger);cursor:pointer;font-size:14px;margin-right:4px;">✕</button></label>`;
+        });
+        html += '</div></div>';
+    }
+
+    if (!html) {
+        html = '<div style="text-align:center;color:var(--text2);padding:12px;">אין משגיחים מוגדרים. הוסף חתימות בניהול נתונים או הקלד ידנית למטה.</div>';
+    }
+
+    container.innerHTML = html;
+}
+
+function addManualSupervisor() {
+    const input = document.getElementById('manualSupervisorInput');
+    const name = input.value.trim();
+    if (!name) return;
+    manualSupervisors.push(name);
+    input.value = '';
+    renderSupervisorsChecklist();
+    updateSupervisorsHidden();
+}
+
+function removeManualSupervisor(idx) {
+    manualSupervisors.splice(idx, 1);
+    renderSupervisorsChecklist();
+    updateSupervisorsHidden();
+}
+
+function updateSupervisorsHidden() {
+    const checked = Array.from(document.querySelectorAll('input[name="supervisorItem"]:checked'));
+    const names = checked.map(cb => cb.value);
+    const allNames = names.join(', ');
+
+    // First name goes to supervisorName, rest to additionalSupervisors
+    document.getElementById('supervisorName').value = names[0] || '';
+    document.getElementById('additionalSupervisors').value = names.slice(1).join(', ');
+
+    // Auto-fill related fields (only if currently empty or previously auto-filled)
+    const bishulBy = document.getElementById('bishulBy');
+    if (bishulBy && (!bishulBy.value || bishulBy.dataset.autoFilled === 'true')) {
+        bishulBy.value = allNames;
+        bishulBy.dataset.autoFilled = 'true';
+    }
+
+    const regularSup = document.getElementById('regularSupervisorName');
+    if (regularSup && (!regularSup.value || regularSup.dataset.autoFilled === 'true')) {
+        regularSup.value = allNames;
+        regularSup.dataset.autoFilled = 'true';
+    }
 }
 
 // ============================================================
 // RENDER ADMIN LISTS
 // ============================================================
 function renderAllAdminLists() {
-    ['importers', 'certifiers', 'factories', 'rawMaterials', 'signatures'].forEach(renderAdminList);
+    ['importers', 'certifiers', 'factories', 'rawMaterials', 'products', 'signatures'].forEach(renderAdminList);
 }
 
 function renderAdminList(type) {
@@ -538,13 +790,17 @@ function renderAdminList(type) {
     const detailsMap = {
         importers: i => `${i.phone || ''} ${i.email ? '| ' + i.email : ''}`,
         certifiers: i => `${i.phone || ''} ${i.email ? '| ' + i.email : ''}`,
-        factories: i => `${i.city || ''}, ${i.country || ''} ${i.contact ? '| ' + i.contact : ''}`
+        factories: i => `${i.city || ''}, ${i.country || ''} ${i.contact ? '| ' + i.contact : ''}`,
+        rawMaterials: i => {
+            const parts = [i.manufacturer, i.certification].filter(Boolean);
+            return parts.length ? parts.join(' | ') : (i.category || '');
+        }
     };
     container.innerHTML = items.map(i => `
         <div class="admin-item">
             <div class="admin-item-info">
                 <span class="admin-item-name">${i.nameHeb || i.name}</span>
-                <span class="admin-item-details">${detailsMap[type](i)}</span>
+                <span class="admin-item-details">${(detailsMap[type] || (() => ''))(i)}</span>
             </div>
             <div class="admin-item-actions">
                 <button class="btn-icon" onclick="editItem('${type}',${i.id})" title="ערוך">✏️</button>
@@ -560,7 +816,8 @@ const formFieldMap = {
     importers: { name: 'newImpName', phone: 'newImpPhone', email: 'newImpEmail', nameHeb: 'newImpName' },
     certifiers: { name: 'newCertName', phone: 'newCertPhone', email: 'newCertEmail', fax: 'newCertFax' },
     factories: { name: 'newFactName', city: 'newFactCity', country: 'newFactCountry', contact: 'newFactContact', phone: 'newFactPhone', email: 'newFactEmail' },
-    rawMaterials: { name: 'newRawMatName', category: 'newRawMatCategory' },
+    rawMaterials: { name: 'newRawMatName', category: 'newRawMatCategory', manufacturer: 'newRawMatManufacturer', certification: 'newRawMatCertification' },
+    products: { name: 'newProductName' },
     signatures: { name: 'newSigName' },
 };
 
@@ -569,6 +826,7 @@ const formTitles = {
     certifiers: { add: 'הוסף גוף כשרות חדש', edit: '✏️ עריכת גוף כשרות' },
     factories: { add: 'הוסף מפעל חדש', edit: '✏️ עריכת מפעל' },
     rawMaterials: { add: 'הוסף חומר גלם / מרכיב חדש', edit: '✏️ עריכת חומר גלם' },
+    products: { add: 'הוסף מוצר חדש', edit: '✏️ עריכת מוצר' },
     signatures: { add: 'הוסף חתימה חדשה', edit: '✏️ עריכת חתימה' },
 };
 
@@ -577,6 +835,7 @@ const formBtnLabels = {
     certifiers: { add: '➕ הוסף', edit: '💾 עדכן' },
     factories: { add: '➕ הוסף', edit: '💾 עדכן' },
     rawMaterials: { add: '➕ הוסף חומר גלם', edit: '💾 עדכן חומר גלם' },
+    products: { add: '➕ הוסף מוצר', edit: '💾 עדכן מוצר' },
     signatures: { add: '➕ הוסף חתימה', edit: '💾 עדכן חתימה' },
 };
 
@@ -683,6 +942,10 @@ function newReport() {
     currentReportId = null;
     localStorage.removeItem('ravino_last_report');
     updateReportBadge();
+
+    // Reset manual supervisors
+    manualSupervisors = [];
+    renderSupervisorsChecklist();
 
     // Set today's dates
     const today = new Date().toISOString().split('T')[0];
@@ -826,8 +1089,7 @@ function gatherFormData() {
         rawMaterials: v('rawMaterials'),
         productionProcess: v('productionProcess'),
         finalDate: v('finalDate'),
-        sigSupervisorId: v('selSigSupervisor'),
-        sigCertifierId: v('selSigCertifier')
+        sigSupervisorId: v('selSigSupervisor')
     };
 }
 
@@ -843,8 +1105,9 @@ function clearForm() {
         if (el.type === 'radio' || el.type === 'checkbox') el.checked = false;
         else if (el.type !== 'hidden') el.value = '';
     });
-    ['sigSupervisor', 'sigCertifier', 'sigFinal'].forEach(id => {
-        document.getElementById(id).innerHTML = '<span class="sig-placeholder">לחץ לבחור חתימה</span>';
+    ['sigSupervisor', 'sigFinal'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.innerHTML = '<span class="sig-placeholder">לחץ לבחור חתימה</span>';
     });
     // Remove custom raw material items
     document.querySelectorAll('.raw-mat-item.custom').forEach(el => el.remove());
@@ -914,7 +1177,6 @@ function exportToWordFallback(d) {
     const cert = store.certifiers.find(i => i.id == d.certifierId);
     const fact = store.factories.find(i => i.id == d.factoryId);
     const sigSup = store.signatures.find(s => s.id == d.sigSupervisorId);
-    const sigCert = store.signatures.find(s => s.id == d.sigCertifierId);
 
     const formatDate = (ds) => {
         if (!ds) return '___________';
@@ -997,6 +1259,7 @@ window.addEventListener('DOMContentLoaded', async () => {
             store.certifiers = serverData.certifiers || [];
             store.factories = serverData.factories || [];
             store.rawMaterials = serverData.rawMaterials || [];
+            store.products = serverData.products || [];
             store.signatures = serverData.signatures || [];
             serverMode = true;
             console.log('✅ Connected to server - using server data + real .docx generation');
@@ -1007,6 +1270,8 @@ window.addEventListener('DOMContentLoaded', async () => {
 
     populateSelects();
     renderRawMaterialsChecklist();
+    renderProductsChecklist();
+    renderSupervisorsChecklist();
     showTab('report');
 
     // Update theme icon
@@ -1017,6 +1282,12 @@ window.addEventListener('DOMContentLoaded', async () => {
 
     // Render history on startup (list is default view)
     renderHistory();
+
+    // Mark fields as manually edited if user types in them
+    ['bishulBy', 'regularSupervisorName'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener('input', () => { el.dataset.autoFilled = 'false'; });
+    });
 
     // Show mode indicator
     if (serverMode) {
@@ -1094,7 +1365,7 @@ function loadSavedReport() {
         setVal('productionProcess', report.productionProcess);
         setVal('finalDate', report.finalDate);
         setVal('selSigSupervisor', report.sigSupervisorId);
-        setVal('selSigCertifier', report.sigCertifierId);
+
 
         // Restore radio buttons
         setRadio('nonKosher', report.nonKosher);
@@ -1143,13 +1414,6 @@ function loadSavedReport() {
                     const el = document.getElementById(id);
                     if (el) el.innerHTML = `<img src="${sig.imageData}" alt="חתימה">`;
                 });
-            }
-        }
-        if (report.sigCertifierId) {
-            const sig = store.signatures.find(s => s.id == report.sigCertifierId);
-            if (sig && sig.imageData) {
-                const el = document.getElementById('sigCertifier');
-                if (el) el.innerHTML = `<img src="${sig.imageData}" alt="חתימה">`;
             }
         }
 

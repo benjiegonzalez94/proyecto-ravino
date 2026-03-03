@@ -110,10 +110,24 @@ echo.
 echo echo Instalando en: %%INSTALL_DIR%%
 echo echo.
 echo.
+echo :: Backup existing data before update
+echo if exist "%%INSTALL_DIR%%\data.json" ^(
+echo     echo [*] Respaldando datos del usuario...
+echo     copy "%%INSTALL_DIR%%\data.json" "%%TEMP%%\ravino_data_backup.json" /Y ^>nul
+echo ^)
+echo.
 echo :: Copy files
 echo if exist "%%INSTALL_DIR%%" rmdir /s /q "%%INSTALL_DIR%%"
 echo xcopy "%%~dp0\*" "%%INSTALL_DIR%%\" /E /Q /Y ^>nul
 echo echo [OK] Archivos copiados.
+echo.
+echo :: Restore user data if backup exists
+echo if exist "%%TEMP%%\ravino_data_backup.json" ^(
+echo     echo [*] Restaurando datos del usuario...
+echo     copy "%%TEMP%%\ravino_data_backup.json" "%%INSTALL_DIR%%\data.json" /Y ^>nul
+echo     del "%%TEMP%%\ravino_data_backup.json" ^>nul
+echo     echo [OK] Datos restaurados.
+echo ^)
 echo.
 echo :: Create Desktop shortcut via PowerShell
 echo echo Creando acceso directo en el escritorio...

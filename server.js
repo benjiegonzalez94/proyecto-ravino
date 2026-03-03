@@ -168,6 +168,23 @@ app.post('/api/reseed', (req, res) => {
     }
 });
 
+// ── PUT all data (import) ──
+app.put('/api/data', (req, res) => {
+    try {
+        const types = ['importers', 'certifiers', 'factories', 'rawMaterials', 'signatures'];
+        for (const t of types) {
+            if (Array.isArray(req.body[t])) {
+                masterData[t] = req.body[t];
+            }
+        }
+        saveData();
+        console.log('📥 Master data imported via API');
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
 // ============================================================
 // API: Generate .docx report  (MUST be before /api/:type)
 // ============================================================
@@ -243,7 +260,6 @@ app.post('/api/generate', (req, res) => {
             mashgiaj_reg_email: formData.regularSupervisorEmail || '',
             materias_primas: formData.rawMaterials || '',
             proceso_produccion: formData.productionProcess || '',
-            proceso_produccion_2: '',
             fecha_final: fmtDate(formData.finalDate),
         };
 
@@ -252,9 +268,6 @@ app.post('/api/generate', (req, res) => {
         // We look up signature IDs from formData and get their base64 imageData
         const sigSupervisor = formData.sigSupervisorId
             ? masterData.signatures.find(s => s.id == formData.sigSupervisorId)
-            : null;
-        const sigCertifier = formData.sigCertifierId
-            ? masterData.signatures.find(s => s.id == formData.sigCertifierId)
             : null;
 
         // Convert base64 data URL to Buffer
@@ -265,7 +278,6 @@ app.post('/api/generate', (req, res) => {
         }
 
         const supBuf = sigSupervisor ? base64ToBuffer(sigSupervisor.imageData) : null;
-        const certBuf = sigCertifier ? base64ToBuffer(sigCertifier.imageData) : null;
 
         // Create a 1x1 transparent PNG for empty signatures
         const emptyPng = Buffer.from(
@@ -274,16 +286,14 @@ app.post('/api/generate', (req, res) => {
         );
 
         // Assign image buffers to template data
-        // firma_mashgiaj = supervisor signature, firma_certificador = certifier signature
-        // Use empty string (falsy) when no signature → module will skip rendering
-        // Use a string key when signature exists → getImage will resolve to buffer
         templateData.firma_mashgiaj = supBuf ? 'sig_supervisor' : '';
-        templateData.firma_certificador = certBuf ? 'sig_certifier' : '';
+        templateData.firma_certificador = ''; // Certifier handles their own signature
+        templateData.firma_final = supBuf ? 'sig_final' : '';
 
         // Map of signature keys to actual image buffers
         const sigBuffers = {};
         if (supBuf) sigBuffers['sig_supervisor'] = supBuf;
-        if (certBuf) sigBuffers['sig_certifier'] = certBuf;
+        if (supBuf) sigBuffers['sig_final'] = supBuf; // Same signature for final
 
         // ── Image module configuration ──
         const imageOpts = {

@@ -180,7 +180,8 @@
                     </div>
                     <div class="form-row">
                         <div class="form-group full">
-                            <textarea id="products" rows="3" placeholder="רשום את המוצרים כאן..."></textarea>
+                            <div id="productsChecklist" class="checklist-container"></div>
+                            <input type="hidden" id="products">
                         </div>
                     </div>
                 </section>
@@ -212,7 +213,8 @@
                     <div class="form-row">
                         <div class="form-group full">
                             <label>3. כמות ושמות המוצרים שנעשו בהשגחה צמודה:</label>
-                            <textarea id="supervisedProducts" rows="2"></textarea>
+                            <p class="field-hint">המוצרים שנבחרו למעלה מוצגים כאן. ניתן לערוך ולהוסיף כמויות.</p>
+                            <textarea id="supervisedProducts" rows="3"></textarea>
                         </div>
                     </div>
                     <div class="form-row">
@@ -229,7 +231,8 @@
                     <div class="form-row">
                         <div class="form-group full">
                             <label>4.א. במידה ונעשה בישול ישראל, ע"י מי?</label>
-                            <input type="text" id="bishulBy">
+                            <p class="field-hint">מתמלא אוטומטית מהמשגיחים שנבחרו. ניתן לערוך.</p>
+                            <input type="text" id="bishulBy" placeholder="יתמלא אוטומטית מבחירת המשגיחים">
                         </div>
                     </div>
                     <div class="form-row">
@@ -268,15 +271,16 @@
                     <div class="section-header"><span class="section-icon">👁️</span> השגחה צמודה</div>
                     <div class="form-row">
                         <div class="form-group full">
-                            <label>1. שם המשגיח שנכח בשעת הייצור:</label>
-                            <input type="text" id="supervisorName">
-                        </div>
-                    </div>
-                    <div class="form-row">
-                        <div class="form-group full">
-                            <label>1.א. (במקרה של מספר משגיחים):</label>
-                            <textarea id="additionalSupervisors" rows="2"
-                                placeholder="שמות ומספרי טלפון של כל המשגיחים..."></textarea>
+                            <label>1. שם המשגיח/ים שנכחו בשעת הייצור:</label>
+                            <p class="field-hint">בחר משגיחים מהרשימה ו/או הוסף ידנית.</p>
+                            <div id="supervisorsChecklist" class="checklist-container"></div>
+                            <div style="margin-top:8px;display:flex;gap:8px;align-items:center;">
+                                <input type="text" id="manualSupervisorInput" placeholder="הוסף משגיח נוסף ידנית...">
+                                <button type="button" class="btn-primary" onclick="addManualSupervisor()"
+                                    style="padding:8px 16px;white-space:nowrap;">➕ הוסף</button>
+                            </div>
+                            <input type="hidden" id="supervisorName">
+                            <input type="hidden" id="additionalSupervisors">
                         </div>
                     </div>
                     <div class="form-row two-col">
@@ -357,7 +361,8 @@
                     <div class="form-row">
                         <div class="form-group full">
                             <label>שם המשגיח או הרב שערך את הביקור במפעל:</label>
-                            <input type="text" id="regularSupervisorName">
+                            <p class="field-hint">מתמלא אוטומטית מהמשגיחים שנבחרו. ניתן לערוך.</p>
+                            <input type="text" id="regularSupervisorName" placeholder="יתמלא אוטומטית מבחירת המשגיחים">
                         </div>
                     </div>
                     <div class="form-row two-col">
@@ -416,16 +421,6 @@
                                 <option value="">-- בחר חתימה --</option>
                             </select>
                         </div>
-                        <div class="signature-box">
-                            <h4>חותמת גוף הכשרות</h4>
-                            <p class="sig-desc">חותמת גוף הכשרות וחתימתו של רב פוסק מטעמם</p>
-                            <div class="signature-preview" id="sigCertifier">
-                                <span class="sig-placeholder">לחץ לבחור חתימה</span>
-                            </div>
-                            <select id="selSigCertifier" onchange="onSignatureSelect('certifier')">
-                                <option value="">-- בחר חתימה --</option>
-                            </select>
-                        </div>
                     </div>
                     <p class="sig-disclaimer">(זו חתימתי והנתונים שמסרתי הינם נכונים ומדויקים.)</p>
                 </section>
@@ -475,11 +470,26 @@
     <div id="view-admin" class="view">
         <div class="container">
             <h2 class="admin-title">⚙️ ניהול נתונים</h2>
+
+            <!-- Export / Import -->
+            <div class="data-transfer-bar">
+                <button class="btn-primary" onclick="exportMasterData()"
+                    style="background:var(--gold);border-color:var(--gold);">
+                    📤 ייצוא נתונים
+                </button>
+                <button class="btn-primary" onclick="document.getElementById('importFileInput').click()">
+                    📥 ייבוא נתונים
+                </button>
+                <input type="file" id="importFileInput" accept=".json" style="display:none"
+                    onchange="importMasterData(event)">
+            </div>
+
             <div class="admin-tabs">
                 <button class="admin-tab active" onclick="showAdminSection('importers')">🏢 יבואנים</button>
                 <button class="admin-tab" onclick="showAdminSection('certifiers')">✡️ גופי כשרות</button>
                 <button class="admin-tab" onclick="showAdminSection('factories')">🏭 מפעלים</button>
                 <button class="admin-tab" onclick="showAdminSection('rawMaterials')">🧪 חומרי גלם</button>
+                <button class="admin-tab" onclick="showAdminSection('products')">📦 מוצרים</button>
                 <button class="admin-tab" onclick="showAdminSection('signatures')">✍️ חתימות</button>
             </div>
 
@@ -559,6 +569,12 @@
                         <div class="form-group"><label>קטגוריה (אופציונלי):</label><input type="text"
                                 id="newRawMatCategory" placeholder="לדוגמה: ממתיקים"></div>
                     </div>
+                    <div class="form-row two-col">
+                        <div class="form-group"><label>יצרן / ספק:</label><input type="text" id="newRawMatManufacturer"
+                                placeholder="לדוגמה: MilagroFab"></div>
+                        <div class="form-group"><label>תעודת כשרות / תקן:</label><input type="text"
+                                id="newRawMatCertification" placeholder="לדוגמה: ISO 19000"></div>
+                    </div>
                     <div class="admin-form-actions">
                         <button class="btn-primary" id="formBtn-rawMaterials" onclick="addRawMaterial()">➕ הוסף חומר
                             גלם</button>
@@ -567,6 +583,24 @@
                     </div>
                 </div>
                 <div class="admin-list" id="list-rawMaterials"></div>
+            </div>
+
+            <!-- Products Admin -->
+            <div id="admin-products" class="admin-section">
+                <div class="admin-form" id="form-products">
+                    <h3 id="formTitle-products">הוסף מוצר חדש</h3>
+                    <input type="hidden" id="editId-products" value="">
+                    <div class="form-row">
+                        <div class="form-group full"><label>שם המוצר:</label><input type="text" id="newProductName">
+                        </div>
+                    </div>
+                    <div class="admin-form-actions">
+                        <button class="btn-primary" id="formBtn-products" onclick="addProduct()">➕ הוסף מוצר</button>
+                        <button class="btn-secondary" id="formCancel-products" onclick="cancelEdit('products')"
+                            style="display:none">❌ ביטול</button>
+                    </div>
+                </div>
+                <div class="admin-list" id="list-products"></div>
             </div>
 
             <!-- Signatures Admin -->
