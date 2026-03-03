@@ -894,9 +894,36 @@ function cancelEdit(type) {
 // ============================================================
 // SAVE / LOAD REPORT (with history - update in place)
 // ============================================================
+// ============================================================
+// HISTORY HELPERS (server-backed)
+// ============================================================
+async function getHistory() {
+    if (serverMode) {
+        try {
+            const resp = await fetch('/api/history');
+            if (resp.ok) return await resp.json();
+        } catch (e) { /* fallback */ }
+    }
+    return JSON.parse(localStorage.getItem('ravino_history') || '[]');
+}
+
+async function saveHistoryToServer(history) {
+    // Always save to localStorage as fallback
+    localStorage.setItem('ravino_history', JSON.stringify(history));
+    if (serverMode) {
+        try {
+            await fetch('/api/history', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(history)
+            });
+        } catch (e) { console.warn('History save to server failed', e); }
+    }
+}
+
 let currentReportId = null; // Track which report we're editing
 
-function saveReport() {
+async function saveReport() {
     const report = gatherFormData();
 
     // Metadata
@@ -906,7 +933,7 @@ function saveReport() {
     report._factory = fact ? fact.name : '';
     report._savedAt = new Date().toISOString();
 
-    let history = JSON.parse(localStorage.getItem('ravino_history') || '[]');
+    let history = await getHistory();
 
     if (currentReportId) {
         // UPDATE existing report in history
@@ -931,7 +958,7 @@ function saveReport() {
     }
 
     if (history.length > 50) history = history.slice(0, 50);
-    localStorage.setItem('ravino_history', JSON.stringify(history));
+    await saveHistoryToServer(history);
     localStorage.setItem('ravino_last_report', JSON.stringify(report));
 
     updateReportBadge();
@@ -956,13 +983,13 @@ function newReport() {
     toast('דוח חדש נוצר ✓');
 }
 
-function updateReportBadge() {
+async function updateReportBadge() {
     const badge = document.getElementById('currentReportBadge');
     const nameEl = document.getElementById('currentReportName');
     if (!badge || !nameEl) return;
 
     if (currentReportId) {
-        const history = JSON.parse(localStorage.getItem('ravino_history') || '[]');
+        const history = await getHistory();
         const report = history.find(h => h._id === currentReportId);
         const label = report ? `${report._label || 'דוח'}${report._factory ? ' — ' + report._factory : ''}` : 'דוח נוכחי';
         nameEl.textContent = `📋 עריכת: ${label}`;
@@ -976,11 +1003,11 @@ function updateReportBadge() {
 // ============================================================
 // HISTORY
 // ============================================================
-function renderHistory() {
+async function renderHistory() {
     const container = document.getElementById('historyList');
     if (!container) return;
 
-    const history = JSON.parse(localStorage.getItem('ravino_history') || '[]');
+    const history = await getHistory();
     if (history.length === 0) {
         container.innerHTML = '<div style="text-align:center;color:var(--text2);padding:40px;">אין דוחות שמורים. לחץ "שמור דוח" כדי לשמור.</div>';
         return;
@@ -1014,8 +1041,8 @@ function renderHistory() {
     }).join('');
 }
 
-function loadFromHistory(id) {
-    const history = JSON.parse(localStorage.getItem('ravino_history') || '[]');
+async function loadFromHistory(id) {
+    const history = await getHistory();
     const report = history.find(h => h._id === id);
     if (!report) return;
 
@@ -1027,9 +1054,12 @@ function loadFromHistory(id) {
     toast('הדוח נטען ✓');
 }
 
-function deleteFromHistory(id) {
+async function deleteFromHistory(id) {
     if (!confirm('למחוק דוח זה מההיסטוריה?')) return;
-    let history = JSON.parse(localStorage.getItem('ravino_history') || '[]');
+    if (serverMode) {
+        try { await fetch('/api/history/' + id, { method: 'DELETE' }); } catch (e) { }
+    }
+    let history = await getHistory();
     history = history.filter(h => h._id !== id);
     localStorage.setItem('ravino_history', JSON.stringify(history));
     if (currentReportId === id) {

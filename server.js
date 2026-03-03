@@ -33,7 +33,7 @@ app.use(express.static(path.join(__dirname, 'app')));
 // ============================================================
 // DATA PERSISTENCE
 // ============================================================
-let masterData = { importers: [], certifiers: [], factories: [], rawMaterials: [], signatures: [], nextId: 100 };
+let masterData = { importers: [], certifiers: [], factories: [], rawMaterials: [], signatures: [], history: [], nextId: 100 };
 
 function saveData() {
     fs.writeFileSync(DATA_FILE, JSON.stringify(masterData, null, 2), 'utf8');
@@ -46,6 +46,7 @@ function loadData() {
         masterData = JSON.parse(raw);
         if (!masterData.signatures) masterData.signatures = [];
         if (!masterData.rawMaterials) masterData.rawMaterials = [];
+        if (!masterData.history) masterData.history = [];
         if (!masterData.nextId) masterData.nextId = 100;
         console.log('📂 Data loaded from data.json');
     } else {
@@ -155,6 +156,33 @@ console.log(`📋 Data: ${masterData.importers.length} importers, ${masterData.c
 // ── GET all data ──
 app.get('/api/data', (req, res) => {
     res.json(masterData);
+});
+
+// ── History API ──
+app.get('/api/history', (req, res) => {
+    res.json(masterData.history || []);
+});
+
+app.put('/api/history', (req, res) => {
+    try {
+        if (Array.isArray(req.body)) {
+            masterData.history = req.body;
+        }
+        saveData();
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+app.delete('/api/history/:id', (req, res) => {
+    try {
+        masterData.history = (masterData.history || []).filter(h => h._id !== req.params.id);
+        saveData();
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
 });
 
 // ── Re-seed from Excel (reset) ──
