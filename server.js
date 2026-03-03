@@ -347,7 +347,31 @@ app.post('/api/generate', (req, res) => {
         doc.setData(templateData);
         doc.render();
 
-        const buf = doc.getZip().generate({
+        // ── Post-process: fix image alignment for RTL ──
+        // The image module may not preserve paragraph alignment (jc=right, bidi)
+        // for generated image paragraphs. We fix this by ensuring all paragraphs
+        // containing drawing elements have proper RTL properties.
+        const renderedZip = doc.getZip();
+        let docXml = renderedZip.file('word/document.xml').asText();
+
+        // Find paragraphs with images and ensure they have bidi + jc right
+        docXml = docXml.replace(/<w:p(\s[^>]*)?>(?=.*?<w:drawing>)(.*?)<\/w:p>/gs, (match) => {
+            // If paragraph has a drawing but no pPr with bidi+jc
+            if (match.includes('<w:drawing>')) {
+                if (!match.includes('<w:pPr>')) {
+                    // No paragraph properties at all - add them
+                    return match.replace('<w:r', '<w:pPr><w:bidi/><w:jc w:val="right"/></w:pPr><w:r');
+                } else if (!match.includes('<w:jc')) {
+                    // Has pPr but no jc - add jc right
+                    return match.replace('</w:pPr>', '<w:jc w:val="right"/></w:pPr>');
+                }
+            }
+            return match;
+        });
+
+        renderedZip.file('word/document.xml', docXml);
+
+        const buf = renderedZip.generate({
             type: 'nodebuffer',
             compression: 'DEFLATE'
         });
