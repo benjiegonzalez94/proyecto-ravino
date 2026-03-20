@@ -1406,11 +1406,31 @@ function loadSavedReport() {
 
         // Restore raw materials checkboxes
         if (report.rawMaterials) {
-            const selectedNames = report.rawMaterials.split(',').map(s => s.trim()).filter(Boolean);
+            // rawMaterials is saved as "name - manufacturer - cert\nname2 - mfr2 - cert2"
+            // Checkbox values are just the name, so extract name from each line
+            const lines = report.rawMaterials.split('\n').filter(Boolean);
+            const selectedNames = lines.map(line => line.split(' - ')[0].trim());
             document.querySelectorAll('#rawMaterialsChecklist input[type="checkbox"]').forEach(cb => {
                 if (selectedNames.includes(cb.value)) cb.checked = true;
             });
-            updateRawMaterialsHidden();
+            // Set the hidden field directly with the full text (preserves manufacturer/cert info)
+            document.getElementById('rawMaterials').value = report.rawMaterials;
+        }
+
+        // Restore products checkboxes
+        if (report.products) {
+            const selectedProducts = report.products.split(',').map(s => s.trim()).filter(Boolean);
+            document.querySelectorAll('input[name="productItem"]').forEach(cb => {
+                if (selectedProducts.includes(cb.value)) cb.checked = true;
+            });
+        }
+
+        // Restore supervisor checkboxes
+        if (report.supervisorName) {
+            const selectedSupervisors = report.supervisorName.split(',').map(s => s.trim()).filter(Boolean);
+            document.querySelectorAll('input[name="supervisorItem"]').forEach(cb => {
+                if (selectedSupervisors.includes(cb.value)) cb.checked = true;
+            });
         }
 
         // Trigger auto-fill for importer/certifier/factory selects
