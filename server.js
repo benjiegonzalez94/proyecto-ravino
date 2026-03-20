@@ -355,17 +355,18 @@ app.post('/api/generate', (req, res) => {
         const renderedZip = doc.getZip();
         let docXml = renderedZip.file('word/document.xml').asText();
 
-        // Find paragraphs with images and fix their alignment for RTL.
-        // NOTE: For images, remove <w:bidi/> (it flips image position in RTL)
-        // and ensure <w:jc w:val="right"/> for physical right alignment.
-        // Using split instead of regex to avoid catastrophic backtracking.
+        // Find paragraphs with images and align them to the RIGHT (same as text).
+        // Remove <w:bidi/> (prevents image flipping) and add jc=right.
         const parts = docXml.split('</w:p>');
         for (let i = 0; i < parts.length; i++) {
             if (parts[i].includes('<w:drawing>')) {
                 let p = parts[i];
-                // Remove bidi from image paragraphs
+                // Remove bidi (direct) — prevents RTL flipping
                 p = p.replace('<w:bidi/>', '');
-                // Ensure jc=right
+                // Remove pStyle reference — pStyle "a9" has bidi in the style definition
+                // which also causes RTL flipping. Without pStyle, the paragraph is pure LTR.
+                p = p.replace(/<w:pStyle[^/]*\/>/g, '');
+                // Add jc=right for physical right alignment
                 if (!p.includes('<w:jc')) {
                     if (p.includes('</w:pPr>')) {
                         p = p.replace('</w:pPr>', '<w:jc w:val="right"/></w:pPr>');
