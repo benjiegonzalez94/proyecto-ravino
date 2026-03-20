@@ -33,7 +33,7 @@ app.use(express.static(path.join(__dirname, 'app')));
 // ============================================================
 // DATA PERSISTENCE
 // ============================================================
-let masterData = { importers: [], certifiers: [], factories: [], rawMaterials: [], signatures: [], history: [], nextId: 100 };
+let masterData = { importers: [], certifiers: [], factories: [], rawMaterials: [], products: [], signatures: [], history: [], nextId: 100 };
 
 function saveData() {
     fs.writeFileSync(DATA_FILE, JSON.stringify(masterData, null, 2), 'utf8');
@@ -46,6 +46,7 @@ function loadData() {
         masterData = JSON.parse(raw);
         if (!masterData.signatures) masterData.signatures = [];
         if (!masterData.rawMaterials) masterData.rawMaterials = [];
+        if (!masterData.products) masterData.products = [];
         if (!masterData.history) masterData.history = [];
         if (!masterData.nextId) masterData.nextId = 100;
         console.log('📂 Data loaded from data.json');
@@ -199,7 +200,7 @@ app.post('/api/reseed', (req, res) => {
 // ── PUT all data (import) ──
 app.put('/api/data', (req, res) => {
     try {
-        const types = ['importers', 'certifiers', 'factories', 'rawMaterials', 'signatures'];
+        const types = ['importers', 'certifiers', 'factories', 'rawMaterials', 'products', 'signatures'];
         for (const t of types) {
             if (Array.isArray(req.body[t])) {
                 masterData[t] = req.body[t];
@@ -354,20 +355,28 @@ app.post('/api/generate', (req, res) => {
         const renderedZip = doc.getZip();
         let docXml = renderedZip.file('word/document.xml').asText();
 
-        // Find paragraphs with images and ensure they have bidi + jc right
-        docXml = docXml.replace(/<w:p(\s[^>]*)?>(?=.*?<w:drawing>)(.*?)<\/w:p>/gs, (match) => {
-            // If paragraph has a drawing but no pPr with bidi+jc
-            if (match.includes('<w:drawing>')) {
-                if (!match.includes('<w:pPr>')) {
-                    // No paragraph properties at all - add them
-                    return match.replace('<w:r', '<w:pPr><w:bidi/><w:jc w:val="right"/></w:pPr><w:r');
-                } else if (!match.includes('<w:jc')) {
-                    // Has pPr but no jc - add jc right
-                    return match.replace('</w:pPr>', '<w:jc w:val="right"/></w:pPr>');
+        // Find paragraphs with images and fix their alignment for RTL.
+        // NOTE: For images, remove <w:bidi/> (it flips image position in RTL)
+        // and ensure <w:jc w:val="right"/> for physical right alignment.
+        // Using split instead of regex to avoid catastrophic backtracking.
+        const parts = docXml.split('</w:p>');
+        for (let i = 0; i < parts.length; i++) {
+            if (parts[i].includes('<w:drawing>')) {
+                let p = parts[i];
+                // Remove bidi from image paragraphs
+                p = p.replace('<w:bidi/>', '');
+                // Ensure jc=right
+                if (!p.includes('<w:jc')) {
+                    if (p.includes('</w:pPr>')) {
+                        p = p.replace('</w:pPr>', '<w:jc w:val="right"/></w:pPr>');
+                    } else {
+                        p = p.replace('<w:r', '<w:pPr><w:jc w:val="right"/></w:pPr><w:r');
+                    }
                 }
+                parts[i] = p;
             }
-            return match;
-        });
+        }
+        docXml = parts.join('</w:p>');
 
         renderedZip.file('word/document.xml', docXml);
 
@@ -397,7 +406,7 @@ app.post('/api/generate', (req, res) => {
 // ── ADD item ──
 app.post('/api/:type', (req, res) => {
     const { type } = req.params;
-    const validTypes = ['importers', 'certifiers', 'factories', 'rawMaterials', 'signatures'];
+    const validTypes = ['importers', 'certifiers', 'factories', 'rawMaterials', 'products', 'signatures'];
     if (!validTypes.includes(type)) {
         return res.status(400).json({ error: 'Invalid type: ' + type });
     }
@@ -412,7 +421,7 @@ app.post('/api/:type', (req, res) => {
 // ── DELETE item ──
 app.delete('/api/:type/:id', (req, res) => {
     const { type, id } = req.params;
-    const validTypes = ['importers', 'certifiers', 'factories', 'rawMaterials', 'signatures'];
+    const validTypes = ['importers', 'certifiers', 'factories', 'rawMaterials', 'products', 'signatures'];
     if (!validTypes.includes(type)) {
         return res.status(400).json({ error: 'Invalid type: ' + type });
     }
@@ -433,7 +442,7 @@ app.delete('/api/:type/:id', (req, res) => {
 // ── UPDATE item ──
 app.put('/api/:type/:id', (req, res) => {
     const { type, id } = req.params;
-    const validTypes = ['importers', 'certifiers', 'factories', 'rawMaterials', 'signatures'];
+    const validTypes = ['importers', 'certifiers', 'factories', 'rawMaterials', 'products', 'signatures'];
     if (!validTypes.includes(type)) {
         return res.status(400).json({ error: 'Invalid type: ' + type });
     }
