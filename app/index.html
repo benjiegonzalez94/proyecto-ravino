@@ -295,21 +295,21 @@
                     </div>
                     <div class="form-row">
                         <div class="form-group full">
-                            <label>4. תאריכי ההשגחה/ייצור:</label>
+                            <label>4. תאריכי ההשגחה/ייצור (ניתן להזין מרובים):</label>
                             <div class="date-range">
-                                <input type="date" id="supervisionDateFrom"> <span>עד</span> <input type="date"
-                                    id="supervisionDateTo">
+                                <input type="text" id="supervisionDateFrom" placeholder="לדוגמה: 01/01/26, 05/01/26"> <span>עד</span> <input type="text"
+                                    id="supervisionDateTo" placeholder="לדוגמה: 03/01/26, 07/01/26">
                             </div>
                         </div>
                     </div>
                     <div class="form-row two-col">
                         <div class="form-group">
-                            <label>5. שעת התחלת ייצור:</label>
-                            <input type="time" id="productionStart">
+                            <label>5. שעת התחלת ייצור (ניתן להזין מרובים):</label>
+                            <input type="text" id="productionStart" placeholder="לדוגמה: 08:00, 14:00">
                         </div>
                         <div class="form-group">
-                            <label>6. שעת הסיום ייצור:</label>
-                            <input type="time" id="productionEnd">
+                            <label>6. שעת הסיום ייצור (ניתן להזין מרובים):</label>
+                            <input type="text" id="productionEnd" placeholder="לדוגמה: 12:00, 18:00">
                         </div>
                     </div>
                 </section>
@@ -325,14 +325,14 @@
                     </div>
                     <div class="form-row">
                         <div class="form-group full">
-                            <label>ציין את קוד הייצור המופיע ע"ג המוצר:</label>
-                            <input type="text" id="productionCode">
+                            <label>ציין את קוד הייצור המופיע ע"ג המוצר (ניתן להזין מספר קודים):</label>
+                            <textarea id="productionCode" rows="2" placeholder="לדוגמה: LOTE-123, LOTE-456..."></textarea>
                         </div>
                     </div>
                     <div class="form-row">
-                        <div class="form-group">
-                            <label>פג תוקף הייצור בתאריך:</label>
-                            <input type="date" id="expiryDate">
+                        <div class="form-group full">
+                            <label>פג תוקף הייצור בתאריך (ניתן להזין מספר תאריכים):</label>
+                            <textarea id="expiryDate" rows="2" placeholder="לדוגמה: 12/2026, 01/2027..."></textarea>
                         </div>
                     </div>
                     <div class="form-row two-col">
