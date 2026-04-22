@@ -300,6 +300,13 @@ function onFactoryChange() {
     document.getElementById('factoryPhone').value = item ? item.phone : '';
     document.getElementById('factoryCountry').value = item ? item.country : '';
     document.getElementById('factoryCity').value = item ? item.city : '';
+    
+    // Auto-fill production process if defined in master data
+    if (item && item.process) {
+        document.getElementById('productionProcess').value = item.process;
+    } else {
+        document.getElementById('productionProcess').value = '';
+    }
 }
 
 function onSignatureSelect(type) {
@@ -445,7 +452,8 @@ async function addFactory() {
         country: document.getElementById('newFactCountry').value.trim(),
         contact: document.getElementById('newFactContact').value.trim(),
         phone: document.getElementById('newFactPhone').value.trim(),
-        email: document.getElementById('newFactEmail').value.trim()
+        email: document.getElementById('newFactEmail').value.trim(),
+        process: document.getElementById('newFactProcess').value.trim()
     };
 
     if (await saveEditedItem('factories', data)) return;
@@ -815,7 +823,7 @@ function renderAdminList(type) {
 const formFieldMap = {
     importers: { name: 'newImpName', phone: 'newImpPhone', email: 'newImpEmail', nameHeb: 'newImpName' },
     certifiers: { name: 'newCertName', phone: 'newCertPhone', email: 'newCertEmail', fax: 'newCertFax' },
-    factories: { name: 'newFactName', city: 'newFactCity', country: 'newFactCountry', contact: 'newFactContact', phone: 'newFactPhone', email: 'newFactEmail' },
+    factories: { name: 'newFactName', city: 'newFactCity', country: 'newFactCountry', contact: 'newFactContact', phone: 'newFactPhone', email: 'newFactEmail', process: 'newFactProcess' },
     rawMaterials: { name: 'newRawMatName', category: 'newRawMatCategory', manufacturer: 'newRawMatManufacturer', certification: 'newRawMatCertification' },
     products: { name: 'newProductName' },
     signatures: { name: 'newSigName' },
@@ -957,7 +965,8 @@ async function saveReport() {
         toast('דוח חדש נשמר בהצלחה ✓');
     }
 
-    if (history.length > 50) history = history.slice(0, 50);
+    // Keep up to 2000 history records instead of 50
+    if (history.length > 2000) history = history.slice(0, 2000);
     await saveHistoryToServer(history);
     localStorage.setItem('ravino_last_report', JSON.stringify(report));
 

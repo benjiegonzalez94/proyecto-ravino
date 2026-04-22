@@ -27,7 +27,7 @@ const EXCEL_FILE = path.join(__dirname, 'Lista de Rabanut2.xlsx');
 const DATA_FILE = path.join(__dirname, 'data.json');
 
 // Middleware
-app.use(express.json({ limit: '10mb' }));
+app.use(express.json({ limit: '50mb' }));
 app.use(express.static(path.join(__dirname, 'app')));
 
 // ============================================================
