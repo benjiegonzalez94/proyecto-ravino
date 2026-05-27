@@ -316,8 +316,12 @@ app.post('/api/generate', (req, res) => {
 
         // Assign image buffers to template data
         templateData.firma_mashgiaj = supBuf ? 'sig_supervisor' : '';
+        templateData.firma_mashgiaj_2 = '';
         templateData.firma_certificador = ''; // Certifier handles their own signature
+        templateData.firma_certificador_2 = '';
+        templateData.firma_certificador_3 = '';
         templateData.firma_final = supBuf ? 'sig_final' : '';
+        templateData.proceso_produccion_2 = '';
 
         // Map of signature keys to actual image buffers
         const sigBuffers = {};
@@ -392,6 +396,7 @@ app.post('/api/generate', (req, res) => {
 
         res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
         res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(filename)}`);
+        res.setHeader('Access-Control-Expose-Headers', 'Content-Disposition');
         res.send(buf);
 
     } catch (err) {
